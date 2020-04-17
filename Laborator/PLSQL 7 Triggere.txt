@@ -1,0 +1,123 @@
+drop view catalog;
+create view catalog as
+SELECT nume, prenume, valoare as nota, TITLU_CURS, ID_CURS, id_student
+FROM (SELECT *
+     FROM STUDENTI s
+              JOIN note n on s.ID = n.ID_STUDENT
+              JOIN cursuri c on c.ID = n.ID_CURS);
+
+CREATE OR REPLACE TRIGGER insert_check
+   instead of INSERT
+   ON catalog
+declare
+   aux          number;
+   c_studenti   number;
+   c_materie    number;
+   newstudentID number;
+   d            date;
+   email        varchar2(40);
+   aux2         number;
+
+BEGIN
+
+   SELECT TO_DATE(SYSDATE, 'YYYY-MM-DD HH24:MI:SS') "NOW" into d FROM DUAL;
+   select count(nume) into c_studenti from studenti where nume like :new.nume and prenume like :new.prenume;
+   if c_studenti < 0 THEN --studentul nu exista
+       SELECT ROUND(DBMS_RANDOM.VALUE(1000, 5000)) into newstudentID FROM dual;
+       email := 'mail@mail.com';
+       insert into STUDENTI
+       values (newstudentID, DBMS_RANDOM.string('x', 6), :new.nume, :new.prenume, 1, 'A4', 810.00, d, email, d, d);
+   end if;
+   SELECT count(TITLU_CURS) --verificam daca materia exista
+   into c_materie
+   FROM (SELECT *
+         FROM STUDENTI s
+                  JOIN note n on s.ID = n.ID_STUDENT
+                  JOIN cursuri c on c.ID = n.ID_CURS
+        )
+   WHERE TITLU_CURS like :new.TITLU_CURS;
+
+   if (c_materie <= 0) then --cursul nu exista
+
+       SELECT ROUND(DBMS_RANDOM.VALUE(1000, 5000)) into aux FROM dual;
+       insert into cursuri values (aux, :new.TITLU_CURS, 4, 1, 6, d, d);
+       insert into note values (aux, :new.id_curs, aux, :new.nota, d, d, d);
+       insert into didactic values(aux,aux,aux,d,d);
+   else --cursul exista
+
+       SELECT id_curs
+       into aux2
+       FROM (SELECT *
+             FROM STUDENTI s
+                      JOIN note n on s.ID = n.ID_STUDENT
+                      JOIN cursuri c on c.ID = n.ID_CURS
+            )
+       WHERE TITLU_CURS like :new.TITLU_CURS;
+       SELECT ROUND(DBMS_RANDOM.VALUE(1000, 5000)) into aux FROM dual;
+       insert into note values (aux, :new.id_curs, aux2, :new.nota, d, d, d);
+
+   end if;
+end;
+CREATE
+   OR
+   REPLACE TRIGGER delete_entry
+   instead of
+       delete
+   ON catalog
+
+begin
+   delete
+   from STUDENTI
+   where nume like :old.nume
+     and prenume like :old.prenume;
+
+   delete
+   from note
+   where id_student = :old.id_student;
+end;
+
+create
+   or
+   replace trigger update_entry
+   instead of
+       update
+   on catalog
+declare
+   n number;
+begin
+   IF :new.nota > :old.nota then
+       n := :new.nota;
+   else
+       n := :old.nota;
+   end if;
+   Update (
+       SELECT *
+       FROM STUDENTI s
+                JOIN note n on s.ID = n.ID_STUDENT
+                JOIN cursuri c on c.ID = n.ID_CURS
+   )
+   SET VALOARE=n
+   where nume like :old.nume
+     and prenume like :old.prenume
+     and TITLU_CURS like :old.titlu_curs;
+
+   update NOTE
+   set UPDATED_AT= (SELECT TO_DATE(SYSDATE, 'YYYY-MM-DD HH24:MI:SS') "NOW"
+                    FROM DUAL)
+   where ID_STUDENT = :old.ID_STUDENT
+     AND ID_CURS = :old.ID_CURS;
+
+end;
+
+begin
+   --demonstratie update
+   UPDATE catalog set nota=10 where ID_CURS =7 and nume like 'Munteanu' and prenume like 'Matei';
+   select * from catalog where nume like 'Munteanu' and prenume like 'Matei';
+   --demonstratie insert
+   insert into catalog values ('Munteanu', 'Matei', 5, 'Matematica', 2, 666);
+--demonstratie delete
+   DELETE FROM catalog where nume like 'Munteanu' and prenume like 'Ionel Valeriu';
+   select * from catalog where nume like 'Munteanu' and prenume like 'Ionel Valeriu';
+
+end;
+

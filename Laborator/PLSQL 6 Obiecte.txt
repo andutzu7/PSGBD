@@ -1,0 +1,110 @@
+DROP TABLE cars;
+DROP TABLE PEUGEOTS;
+DROP TYPE car;
+DROP TYPE Peugeot;
+CREATE OR REPLACE TYPE car FORCE AS OBJECT
+(name varchar2(10),
+model varchar2(10),
+year number,
+ member function getName RETURN varchar2,
+ member function getModel RETURN varchar2,
+ member function getYear RETURN number,
+ member procedure setYear (an number),
+CONSTRUCTOR FUNCTION car(nume varchar2, model varchar2)
+   RETURN SELF AS RESULT,
+MAP member FUNCTION COMPAREBYYEAR RETURN NUMBER
+)NOT FINAL;
+/
+CREATE OR REPLACE TYPE Peugeot UNDER car(
+   chassySeries varchar2(30),
+   MEMBER FUNCTION getSeries return varchar2,
+   overriding member function getName return varchar2,
+   CONSTRUCTOR FUNCTION Peugeot(model varchar2,an number,serie varchar2)
+   RETURN SELF AS RESULT
+
+);
+/
+CREATE OR REPLACE TYPE BODY car AS
+  MEMBER PROCEDURE  setYear(an number) IS
+  BEGIN
+       self.year :=an;
+   END setYear;
+   member function getName RETURN varchar2 IS
+   BEGIN
+       return self.name;
+   END getName;
+   member function getModel RETURN varchar2 IS
+   BEGIN
+       return self.model;
+   END getModel;
+   member function getYear RETURN number IS
+   BEGIN
+       return self.year;
+   END getYear;
+   CONSTRUCTOR FUNCTION car(nume varchar2, model varchar2)
+   RETURN SELF AS RESULT
+ AS
+ BEGIN
+   SELF.name := nume;
+   SELF.model := model;
+   SELF.year := 1985;
+   RETURN;
+ END;
+   MAP member FUNCTION COMPAREBYYEAR RETURN NUMBER AS
+   BEGIN
+   RETURN self.year;
+   END;
+
+END;
+
+/
+CREATE OR REPLACE TYPE BODY Peugeot AS
+   member function getSeries RETURN varchar2 IS
+   BEGIN
+       return self.chassySeries;
+   END getSeries;
+   overriding member function getName return varchar2
+   IS
+   BEGIN
+       RETURN 'Masina se numeste ' || self.NAME;
+   END getName;
+   CONSTRUCTOR FUNCTION Peugeot(model varchar2,an number,serie varchar2)
+   RETURN SELF AS RESULT
+ AS
+ BEGIN
+   SELF.name := 'Peugeot';
+   SELF.model := model;
+   SELF.year := an;
+   self.CHASSYSERIES :=serie;
+   RETURN;
+ END;
+END;
+CREATE TABLE cars of car;
+CREATE TABLE Peugeots of Peugeot;
+
+DECLARE
+  c1 car;
+  c2 car;
+   p Peugeot;
+BEGIN
+   c1 :=car('Mazda','MX3',1994);
+   c2 :=car('Citroen','C4');--constructorul suprascris
+   --ilustram operatorul de comparatie
+   if(c1>c2) then
+       insert into cars values c1;
+       insert into cars values c2;
+   else
+       insert into cars values c2;
+       insert into cars values c1;
+   end if;
+   DBMS_OUTPUT.PUT_LINE('OBIECTUL C1 ARE MODELUL ' || c1.GETMODEL());
+
+   DBMS_OUTPUT.PUT_LINE('OBIECTUL C2 ESTE DIN ANUL ' || c2.GETYEAR());
+   p := Peugeot('307',2001,'412dx');
+   DBMS_OUTPUT.PUT_LINE('Peugeot,o masina care inheriteaza clasa car are urm spec: ' || p.GETNAME()|| ' , '||p.GETSERIES());
+   --FUNCTIA GETNAME ESTE DIFERITA pt car si pt peugeot
+   DBMS_OUTPUT.PUT_LINE('car s getname: ' || c1.GETNAME());
+
+   DBMS_OUTPUT.PUT_LINE('Peugeout s getname: ' || p.GETNAME());
+   END;
+

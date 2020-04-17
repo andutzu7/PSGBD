@@ -1,0 +1,68 @@
+create type FLOAT_ARRAY as table of float;
+
+
+
+alter table studenti
+add( lista FLOAT_ARRAY)
+nested table lista store as lista_medii; 
+
+
+
+CREATE OR REPLACE PACKAGE manager_medii IS
+     
+      medii FLOAT_ARRAY := FLOAT_ARRAY();
+     PROCEDURE add_lista_medii;
+     FUNCTION get_semestru(p_id cursuri.id%type) return number;
+     FUNCTION get_nr_medii(p_id studenti.id%type) return number;
+END manager_medii;
+
+
+CREATE OR REPLACE PACKAGE BODY manager_medii IS
+    
+    v_semestru NUMBER := -1;
+    PROCEDURE add_lista_medii IS
+    BEGIN
+       FOR student IN (SELECT * FROM studenti)
+      loop
+          for medie in 
+            (
+              select manager_medii.get_semestru(id_curs) as semestru, avg(valoare) as val
+              from note
+              where id_student = student.id
+              group by manager_medii.get_semestru(id_curs)
+              order by manager_medii.get_semestru(id_curs)
+            )
+          loop
+            medii.extend();
+            medii(medii.last) := medie.val;
+          end loop;
+          
+          update studenti
+          set lista_medii = medii
+          where id=student.id; 
+          medii.delete;
+      end loop;
+    END add_lista_medii;
+    
+    
+    FUNCTION get_semestru(p_id cursuri.id%type) return number IS
+    BEGIN
+       select 2*(an-1)+semestru into v_semestru from cursuri where id=p_id;
+       return v_semestru;
+    END get_semestru;
+    
+    FUNCTION get_nr_medii(p_id studenti.id%type) return number IS
+    BEGIN
+       select lista_medii
+       into medii
+       from studenti
+       where id = p_id;
+       return medii.count;
+    END get_nr_medii;
+    
+    
+    
+END manager_medii;
+
+
+

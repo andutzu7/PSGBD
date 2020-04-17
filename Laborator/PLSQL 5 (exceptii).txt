@@ -1,0 +1,128 @@
+ALTER TABLE NOTE
+   ADD CONSTRAINT gucci UNIQUE (id_student, id_curs);
+
+CREATE OR REPLACE FUNCTION insert_grade(pi_id_student IN studenti.id%type)
+   RETURN VARCHAR2
+AS
+   mesaj   VARCHAR2(32767);
+   counter INTEGER;
+   nota_deja_existenta EXCEPTION;
+   PRAGMA EXCEPTION_INIT (nota_deja_existenta, -20001);
+
+BEGIN
+   SELECT COUNT(*) INTO counter FROM NOTE WHERE ID_STUDENT = pi_id_student;
+   IF counter = 0 THEN
+       UPDATE NOTE SET VALOARE = 10 WHERE id_student = pi_id_student AND ID_CURS = 1;
+   ELSE
+       RAISE nota_deja_existenta;
+   end if;
+   mesaj := 'Studentului cu id ul' || pi_id_student || 'i-a fost pusa nota 10';
+   return mesaj;
+EXCEPTION
+   WHEN nota_deja_existenta THEN
+       return ('Studentul cu ID-ul ' || pi_id_student || ' are deja nota la materia selectata');
+
+END insert_grade;
+declare
+   var VARCHAR2(500);
+BEGIN
+   FOR i in 1..1000000
+       loop
+           var := insert_grade(1);
+       end loop;
+END;
+--TIMP DE EXECUTIE 36S 371MS
+
+CREATE OR REPLACE FUNCTION insert_grade2(pi_id_student IN studenti.id%type)
+   RETURN VARCHAR2
+AS
+   mesaj   VARCHAR2(32767);
+   counter INTEGER;
+BEGIN
+   SELECT COUNT(*) INTO counter FROM NOTE WHERE ID_STUDENT = pi_id_student;
+   insert into note (id, id_student, id_curs, valoare) values (33333, pi_id_student, 1, 10);
+   mesaj := 'Studentului cu id ul' || pi_id_student || 'i-a fost pusa nota 10';
+   return mesaj;
+EXCEPTION
+   WHEN DUP_VAL_ON_INDEX THEN
+       return ('Studentul cu ID-ul ' || pi_id_student || ' are deja nota la materia selectata');
+
+END insert_grade2;
+
+declare
+   var2 VARCHAR2(500);
+BEGIN
+   FOR i in 1..1000000
+       loop
+           var2 := insert_grade2(1);
+       end loop;
+END;
+--DURATA 122S 853 MS
+
+CREATE OR REPLACE FUNCTION get_average(in_nume IN varchar2, in_prenume IN varchar2)
+   RETURN NUMBER
+AS
+
+   nota_recenta INTEGER;
+   media        NUMBER;
+   counter      INTEGER;
+   student_inexistent EXCEPTION;
+   PRAGMA EXCEPTION_INIT (student_inexistent, -20001);
+
+BEGIN
+   select AVG(VALOARE)
+   into media
+   from (select *
+         FROM STUDENTI s
+                  JOIN NOTE n on s.ID = n.ID_STUDENT)
+   where NUME LIKE in_nume
+     and PRENUME LIKE in_prenume
+     AND VALOARE IS NOT NULL;
+   IF media > 0 THEN
+       return media;
+   ELSE
+       RAISE student_inexistent;
+   end if;
+EXCEPTION
+   WHEN student_inexistent THEN
+       SELECT COUNT(*) INTO counter FROM studenti where NUME LIKE in_nume and PRENUME LIKE in_prenume;
+       IF counter = 0 THEN
+           return -1;
+       ELSE
+           raise_application_error(-20123, 'UNKNOWN ERROR');
+       END IF;
+END get_average;
+
+
+DECLARE
+   TYPE student IS TABLE OF VARCHAR2(20) INDEX BY VARCHAR2 (20);
+   lista_studenti student;
+   nume           varchar2(20);
+   prenume        varchar2(20);
+   x              number;
+BEGIN
+   lista_studenti('Munteanu') := 'Matei';
+   lista_studenti('Arvinte') := 'Alex';
+   lista_studenti('Adascalitei') := 'Codrina';
+   lista_studenti('James') := 'Bond';
+   lista_studenti('NU') := 'EXIST';
+   lista_studenti('IMNOT') := 'REAL';
+   nume := lista_studenti.FIRST;
+   prenume := lista_studenti(nume);
+   FOR i IN 1..6
+       LOOP
+           x := get_average(nume, prenume);
+           IF x = -1 then
+               DBMS_OUTPUT.PUT_LINE('Studentul ' || nume || ' ' || prenume || ' nu exista in baza de date ');
+           else
+               DBMS_OUTPUT.PUT_LINE('Media lui ' || nume || ' ' || prenume || ' este ' || x);
+
+           end if;
+           nume := lista_studenti.NEXT(nume);
+           if (nume is not null) then --in cazul iteratiei a 6 a, nume poate deveni null iar programul da crash la executarea NEXT(NULL).,deci cazul trebuie exclus
+               prenume := lista_studenti(nume);
+           end if;
+       END LOOP;
+END;
+
+

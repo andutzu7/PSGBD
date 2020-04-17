@@ -1,0 +1,136 @@
+CREATE OR REPLACE PROCEDURE table_to_csv
+   IS
+   v_fisier UTL_FILE.file_type;
+   v_sir    VARCHAR2(1000);
+   CURSOR c_emp
+       IS
+       SELECT *
+       FROM NOTE;
+BEGIN
+   v_fisier := UTL_FILE.FOPEN('MYDIR', 'RESULT.CSV', 'W');
+   v_sir := 'ID, ID_STUDENT, ID_CURS, VALOARE, DATA_NOTARE, CREATED_AT, UPDATED_AT';
+   UTL_FILE.put_line(v_fisier, v_sir);
+
+   FOR cur IN c_emp
+       LOOP
+           v_sir := cur.ID || ',' || cur.ID_STUDENT || ',' || cur.ID_CURS || ',' || cur.VALOARE || ',' ||
+                    cur.DATA_NOTARE || ',' || cur.CREATED_AT || ',' || cur.UPDATED_AT;
+
+           UTL_FILE.put_line(v_fisier, v_sir);
+
+       END LOOP;
+   UTL_FILE.fclose(v_fisier);
+
+END;
+
+
+CREATE OR REPLACE procedure parsingAndInsertingCSVRow(inputRow varchar2)
+   IS
+   type arrayr is table of varchar2(10000) index by binary_integer ;
+   array_result arrayr;
+   arrayIndex   integer;
+   aux1         integer;
+   aux2         integer;
+   ind          integer;
+   text         varchar2(1000);
+   text2        varchar2(1000);
+   result       varchar2(1000);
+   prima        integer;
+
+BEGIN
+   arrayIndex := 1;
+   prima := 1;
+   text := inputRow;
+   ind := 0;
+   for i in 1..8--nr de virgule +2
+       loop
+           ind := ind + 1;
+           if ind = 1 then
+               SELECT instr(text, ',', 1, ind) into aux1 FROM dual;
+               select SUBSTR(text, 1, aux1 - 1) into result FROM dual;
+               array_result(arrayIndex) := result;
+               arrayIndex := arrayIndex + 1;
+
+           else
+               if ind = 7 then--aici de inlocuit cu nr de virgule pe un rand+1
+                   SELECT instr(text, ',', 1, ind - 1) into aux1 FROM dual; --cautam cea dea n-a virgula
+                   select SUBSTR(text, aux1 + 1, 1000) into result FROM dual; --extragem tot substrigul de dupa virgula
+
+                   if result is not null then
+                       array_result(arrayIndex) := result;
+                       arrayIndex := arrayIndex + 1;
+                   end if;
+
+               else
+                   if ind > 1 then--values
+                       if prima = 1 then--problema cu indxu, imi sarea de prima valoare, quick fix
+                           prima := 0;
+                           ind := ind - 1;
+                       end if;
+                       SELECT instr(text, ',', 1, ind) into aux1 FROM dual; --cautam cea dea n-a virgula
+                       select SUBSTR(text, aux1 + 1, 1000) into text2 FROM dual; --extragem tot substrigul de dupa virgula
+                       select instr(text2, ',') into aux2 from dual; --gasim prima virgula din noul substring generat
+                       select substr(text2, 0, aux2 - 1) into result from dual; --obtiem cuvantul  prin extragerea substringului de la pozitia 0 pana la prima virgula -1
+
+                       if result is not null then
+                           array_result(arrayIndex) := result;
+                           arrayIndex := arrayIndex + 1;
+                       end if;
+                   end if;
+               end if;
+           end if;
+       end loop;
+  insert into NOTE values (array_result(1),array_result(2),array_result(3),array_result(4),array_result(5),array_result(6),array_result(7));
+end;
+
+
+
+CREATE OR REPLACE PROCEDURE csv_to_table
+   IS
+   v_fisier UTL_FILE.file_type;
+   v_line   VARCHAR2(1000);
+   i        integer;
+BEGIN
+   i := 0;
+   v_fisier := UTL_FILE.FOPEN('MYDIR', 'RESULT.CSV', 'R');
+   loop
+         UTL_FILE.GET_LINE(v_fisier, v_line);
+       if i = 0 then --ignoram prima iteratie ca sa nu inseram in tablel column names
+           i := i + 1;
+       else
+           parsingAndInsertingCSVRow(v_line);
+       end if;
+
+   end loop;
+
+exception
+   when
+       no_data_found then
+       UTL_FILE.FCLOSE(v_fisier);
+END;
+
+
+BEGIN
+   --DEMONSTRATIE PROCEDURA DE ADAUGARE IN CSV
+   table_to_csv;
+
+end;
+BEGIN
+   --GOLIREA TABELEI
+   EXECUTE IMMEDIATE 'TRUNCATE TABLE Note';
+
+end;
+/**?
+ Metoda de evitare a expresiilor regulate:
+ Am creat o functie care ia un rand din csv si desparte fiecare cuvant in token uri pe care le introduce intr un array de varchar uri
+ Dupa separarea ficarui cuvant si adaugarea acestuia in lista execut un insert into cu toate valorile adunate. Loop ul se opreste cand nu mai
+ detecteaza valori in interiorul fisierului csv
+*/
+begin
+    CSV_TO_TABLE;
+end;
+select * from NOTE;
+
+
+
+
