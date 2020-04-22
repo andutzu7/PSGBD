@@ -1,5 +1,9 @@
 package Tema.SGBD;
 
+import org.json.simple.JSONObject;
+import org.json.simple.JSONArray;
+
+
 import java.sql.*;
 import java.util.*;
 
@@ -69,13 +73,44 @@ class Main {
     }
 
     public static void printMap(Map<Integer, Integer> board) {
-        Set set = board.entrySet();//Converting to Set so that we can traverse
-        Iterator itr = set.iterator();
+        Set<Map.Entry<Integer, Integer>> set = board.entrySet();//Converting to Set so that we can traverse
+        Iterator<Map.Entry<Integer, Integer>> itr = set.iterator();
         while (itr.hasNext()) {
             //Converting to Map.Entry so that we can get key and value separately
-            Map.Entry entry = (Map.Entry) itr.next();
+            Map.Entry<Integer, Integer> entry = itr.next();
             System.out.println(entry.getKey() + " " + entry.getValue());
         }
+    }
+
+    public static JSONObject getSuggestedList(Map<Integer, Integer> map) throws SQLException {
+        JSONArray result = new JSONArray();
+        String getDataQuery = "SELECT nume,prenume FROM Studenti WHERE id = ?";
+
+        PreparedStatement insertStatement = connection.prepareStatement(getDataQuery);
+        for (Map.Entry<Integer, Integer> entry : map.entrySet()) {
+            JSONObject friend = new JSONObject();
+            insertStatement.setInt(1,entry.getKey());
+            ResultSet rs=insertStatement.executeQuery();
+            rs.next();
+            friend.put("Nume ", rs.getString(1));
+            friend.put("Prenume",rs.getString(2));
+            result.add(friend);
+        }
+        JSONObject jsonObject= new JSONObject();
+        jsonObject.put("Prieteni sugerati",result);
+        return jsonObject;
+    }
+
+
+    public static Map.Entry<Integer, Integer> getMaximumFromMap(Map<Integer, Integer> map) {
+        Map.Entry<Integer, Integer> maxEntry = null;
+
+        for (Map.Entry<Integer, Integer> entry : map.entrySet()) {
+            if (maxEntry == null || entry.getValue() > maxEntry.getValue()) {
+                maxEntry = entry;
+            }
+        }
+        return maxEntry;
     }
 
     /*
@@ -83,17 +118,17 @@ class Main {
      * acestia si ii adaugam intr un map pe care il adaugam intr-o lista, creeind un clasament
      *  La final jsonificam rezultatul si il printam in consola.
      * */
-    public static void suggestFriends(int personId) throws SQLException {
+    public static void suggestFriends(int personId, int sFrListLen) throws SQLException {
         String getFriendsQuery = "SELECT id_prieten FROM Prieteni WHERE id_pers = ?";
         PreparedStatement getDataStatement = connection.prepareStatement(getFriendsQuery);
-        Map<Integer, Integer> board = new HashMap<Integer, Integer>();//id_prieten,nr aparitii
+        //id prieten, nr aparitii
+        Map<Integer, Integer> suggestedBoard = new TreeMap<Integer, Integer>();
         List<Integer> userFriendsIds = new ArrayList<>();
         getDataStatement.setInt(1, personId);
         ResultSet rs = getDataStatement.executeQuery();
         //Stocam indexurile fiecarui prieten al userului specificat
         while (rs.next()) {
             userFriendsIds.add(rs.getInt(1));
-            board.put(rs.getInt(1), 1);
         }
 
         for (int i = 0; i < userFriendsIds.size(); i++) {
@@ -101,16 +136,28 @@ class Main {
             rs = getDataStatement.executeQuery();
             while (rs.next()) {
                 int value;
-                if (board.containsKey(rs.getInt(1))) {
-                    value = board.get(rs.getInt(1));
-                } else {
-                    value = 0;
+                //daca nu se afla in lista
+                if (!userFriendsIds.contains(rs.getInt(1))) {
+                    if (suggestedBoard.containsKey(rs.getInt(1))) {
+                        value = suggestedBoard.get(rs.getInt(1));
+
+                        suggestedBoard.put(rs.getInt(1), value + 1);
+                    } else {
+                        suggestedBoard.put(rs.getInt(1), 1);
+                    }
+
                 }
-                board.put(rs.getInt(1), value + 1);
 
             }
+        }  
+        Map<Integer, Integer> friendsList = new TreeMap<Integer, Integer>();
+        for (int i = 0; i < sFrListLen; i++) {
+            var currentMax = getMaximumFromMap(suggestedBoard);
+            friendsList.put(currentMax.getKey(), currentMax.getValue());
+            suggestedBoard.remove(currentMax.getKey());
         }
-        printMap(board);
+        JSONObject result = getSuggestedList(friendsList);
+        System.out.println(result);
     }
 
     public static void main(String[] args) throws SQLException {
@@ -119,7 +166,7 @@ class Main {
         //createTablePrieteni();
         //Pentru 10 studenti creem o lista de prieteni cu 20 de persoana
         //populateFriendsTable(10,20);
-        suggestFriends(1);
+        suggestFriends(1, 5);
         connection.close();
     }
 }
