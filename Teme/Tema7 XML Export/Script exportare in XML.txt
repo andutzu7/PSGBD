@@ -1,0 +1,59 @@
+    /*  v_sir := 'ID_STUDENT, NR_MATRICOL, NUME, PRENUME, GRUPA, BURSA, DATA_NASTERE, EMAIL, ID_CURS,NUME_CURS' ||
+             ' VALOARE_NOTA,DATA_NOTARE, SEMESTRU_CURS, CREDITE  ';
+    */
+CREATE OR REPLACE PROCEDURE table_to_xml
+    IS
+    v_fisier UTL_FILE.file_type;
+    v_sir    VARCHAR2(1000);
+    CURSOR c
+        IS
+        select *
+        from studenti s
+                 join NOTE n on s.ID = n.ID_STUDENT
+                 join CURSURI c on n.ID_CURS = c.ID;
+BEGIN
+    v_fisier := UTL_FILE.FOPEN('MYDIR', 'RESULT.xml', 'W');
+    UTL_FILE.PUT_LINE(v_fisier, '<SGBD>');
+    UTL_FILE.PUT_LINE(v_fisier, '<STUDENTI>');
+
+    FOR cur IN c
+        LOOP
+            UTL_FILE.PUT_LINE(v_fisier, '<STUDENT>');
+            UTL_FILE.PUT_LINE(v_fisier, '<NUME>');
+            v_sir := cur.NUME || ',' || cur.PRENUME;
+            UTL_FILE.put_line(v_fisier, v_sir);
+            UTL_FILE.PUT_LINE(v_fisier, '</NUME>');
+
+            UTL_FILE.PUT_LINE(v_fisier, '<DATE>');
+
+            UTL_FILE.PUT_LINE(v_fisier, '<INFO>');
+
+            v_sir :=  cur.NR_MATRICOL || ',' || cur.GRUPA || ',' ||
+                     cur.DATA_NASTERE || ',' || cur.EMAIL ;
+            UTL_FILE.put_line(v_fisier, v_sir);
+
+
+            UTL_FILE.PUT_LINE(v_fisier, '</INFO>');
+
+
+            UTL_FILE.PUT_LINE(v_fisier, '<OBIECT>');
+
+            UTL_FILE.PUT_LINE(v_fisier,cur.TITLU_CURS || ',' || 'Nota obtinuta: '|| cur.VALOARE);
+
+            UTL_FILE.PUT_LINE(v_fisier, '</OBIECT>');
+
+            UTL_FILE.PUT_LINE(v_fisier, '</DATE>');
+            UTL_FILE.PUT_LINE(v_fisier, '</STUDENT>');
+
+        END LOOP;
+
+    UTL_FILE.PUT_LINE(v_fisier, '</STUDENTI>');
+    UTL_FILE.PUT_LINE(v_fisier, '</SGBD>');
+    UTL_FILE.fclose(v_fisier);
+
+END;
+
+
+begin
+    table_to_xml;
+end;
