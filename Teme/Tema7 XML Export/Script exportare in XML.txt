@@ -24,8 +24,6 @@ BEGIN
             UTL_FILE.put_line(v_fisier, v_sir);
             UTL_FILE.PUT_LINE(v_fisier, '</NUME>');
 
-            UTL_FILE.PUT_LINE(v_fisier, '<DATE>');
-
             UTL_FILE.PUT_LINE(v_fisier, '<INFO>');
 
             v_sir :=  cur.NR_MATRICOL || ',' || cur.GRUPA || ',' ||
@@ -42,7 +40,6 @@ BEGIN
 
             UTL_FILE.PUT_LINE(v_fisier, '</OBIECT>');
 
-            UTL_FILE.PUT_LINE(v_fisier, '</DATE>');
             UTL_FILE.PUT_LINE(v_fisier, '</STUDENT>');
 
         END LOOP;

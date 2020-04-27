@@ -7,8 +7,14 @@ import java.util.*;
 import java.io.*;
 
 public class Main {
+    public static void main(String[] args) throws FileNotFoundException
+    {
+        File xmlFile = new File("../RESULT.xml");
 
-    public static void main(String[] args) {
+        StudentsXMLParser parser = new StudentsXMLParser();
 
+        ArrayList users = parser.parseXml(new FileInputStream(xmlFile));
+
+        System.out.println(users);
     }
 }
