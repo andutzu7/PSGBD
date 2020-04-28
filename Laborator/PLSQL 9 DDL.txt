@@ -1,0 +1,37 @@
+create or replace procedure create_table_after_id(id IN number) as
+   v_cursor_id INTEGER;
+   v_ok INTEGER;
+   nume varchar2(15);
+   prenume varchar2(30);
+   nr_matricol varchar2(6);
+   valoare number(2);
+   data_notare date;
+begin
+  v_cursor_id := DBMS_SQL.OPEN_CURSOR;
+  DBMS_SQL.PARSE(v_cursor_id, '
+SELECT nume,prenume,nr_matricol,valoare,data_notare from studenti s join note n on s.ID = n.ID_STUDENT join CURSURI c on c.ID=n.ID_CURS where c.ID='|| id, DBMS_SQL.NATIVE);
+  DBMS_SQL.DEFINE_COLUMN(v_cursor_id, 1, nume,15);
+  DBMS_SQL.DEFINE_COLUMN(v_cursor_id, 2, prenume,30);
+  DBMS_SQL.DEFINE_COLUMN(v_cursor_id, 3, nr_matricol,30);
+  DBMS_SQL.DEFINE_COLUMN(v_cursor_id, 4, valoare);
+  DBMS_SQL.DEFINE_COLUMN(v_cursor_id, 5, data_notare);
+  v_ok := DBMS_SQL.EXECUTE(v_cursor_id);
+   LOOP
+     IF DBMS_SQL.FETCH_ROWS(v_cursor_id)>0 THEN
+         DBMS_SQL.COLUMN_VALUE(v_cursor_id, 1, nume);
+         DBMS_SQL.COLUMN_VALUE(v_cursor_id, 2, prenume);
+         DBMS_SQL.COLUMN_VALUE(v_cursor_id, 3, nr_matricol);
+         DBMS_SQL.COLUMN_VALUE(v_cursor_id, 4, valoare);
+         DBMS_SQL.COLUMN_VALUE(v_cursor_id, 5, data_notare);
+
+         DBMS_OUTPUT.PUT_LINE(nume || '   ' || prenume || '    ' || nr_matricol || '   ' || valoare || '   ' || data_notare);
+      ELSE
+        EXIT;
+      END IF;
+  END LOOP;
+  DBMS_SQL.CLOSE_CURSOR(v_cursor_id);
+end;
+
+begin
+    create_table_after_id(1);
+end;
