@@ -1,6 +1,7 @@
 package Tema.SGBD;
 
 import javax.xml.transform.Result;
+import java.awt.desktop.SystemSleepEvent;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -70,24 +71,51 @@ public class Main {
 
     }
 
-    public static void main(String[] args) throws SQLException, IOException {
-        Database db = Database.getInstance();
-        Main m = new Main();
-        final int pagSize = 50;
-        String numeTabel = readUserSelectedTable();
-
-        String query = "select * from ( select a.*, rownum rnum from(SELECT * FROM " + numeTabel + ") a where " +
-                "rownum <=? ) where rnum >=? ";
+    public static void printCatalogPage(String tableName, int pageNumber, int entriesPerPage) throws SQLException {
+        String query = "select * from ( select a.*, rownum rnum from(SELECT * FROM " + tableName + ") a where " +
+                "rownum <=? ) where rnum >? ";
         PreparedStatement preparedStatement = connection.prepareStatement(query);
-        preparedStatement.setInt(1, 50);
-        preparedStatement.setInt(2, 0);
+        int lowerCap=(pageNumber-1)*entriesPerPage;
+        int upperCap=lowerCap+entriesPerPage;
+        preparedStatement.setInt(1, upperCap);
+        preparedStatement.setInt(2, lowerCap);
         ResultSet rs = preparedStatement.executeQuery();
-        int nrOfColumns = getNumberOfColumns(numeTabel);
+        int nrOfColumns = getNumberOfColumns(tableName);
         while (rs.next()) {
             for (int i = 1; i <= nrOfColumns; i++) {
                 System.out.print(rs.getString(i) + " ");
             }
             System.out.println();
         }
+        rs.close();
+    }
+
+    public static void main(String[] args) throws SQLException, IOException {
+        Database db = Database.getInstance();
+        Main m = new Main();
+        final int pagSize = 50;
+        String tableName = readUserSelectedTable();
+        boolean over = false;
+        while (!over) {
+            System.out.println("Introduceti optiunea dorita:");
+            System.out.println("1:Introduceti numarul paginii catalogului");
+            System.out.println("2:Iesiti din aplicatie");
+            System.out.print("Optiunea dorita: ");
+            String optiune = readKeyboardInput();
+            switch (optiune) {
+                case "1":
+                    System.out.println("Introduceti numarul paginii catalogului (nr natural >=1)");
+                    int pageNumber = Integer.parseInt(readKeyboardInput());
+                    printCatalogPage(tableName,pageNumber,pagSize);
+                    break;
+
+                case "2":
+                    over = true;
+                    break;
+            }
+
+        }
+        connection.close();
+
     }
 }
