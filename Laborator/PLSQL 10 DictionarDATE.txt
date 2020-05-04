@@ -1,0 +1,41 @@
+SELECT *
+FROM user_cons_columns
+WHERE table_name = 'CURSURI';
+
+    SELECT *
+    FROM USER_TABLES
+    WHERE table_name like TABLE_NAME;
+
+create or replace procedure SHOW_TABLE_INFO(table_name varchar2) is
+    result varchar2(1000);
+begin
+
+    DBMS_OUTPUT.PUT_LINE('ceva');
+end;
+
+declare
+-- Iterate through all the created objects
+BEGIN
+    FOR item IN
+        (
+        SELECT object_name, object_type FROM USER_OBJECTS)
+
+        LOOP
+            DBMS_OUTPUT.PUT_LINE
+                ('Nume obiect: ' || item.OBJECT_NAME);
+            DBMS_OUTPUT.PUT_LINE
+                ('Tip obiect: ' || item.OBJECT_TYPE);
+            if item.OBJECT_TYPE = 'TABLE' THEN
+                SHOW_TABLE_INFO('pwla');
+
+            end if;
+
+        END LOOP;
+        SHOW_TABLE_INFO('pwla');
+END;
+
+SELECT object_name, object_type
+FROM USER_OBJECTS;
+
+SELECT object_name, object_type
+FROM USER_OBJECTS
