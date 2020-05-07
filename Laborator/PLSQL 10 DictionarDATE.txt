@@ -1,41 +1,267 @@
-SELECT *
-FROM user_cons_columns
-WHERE table_name = 'CURSURI';
+create or replace procedure get_table_data(table_name varchar2) is
+   v_cursor        NUMBER;
+   v_cursor2       NUMBER;
+   v_ok            NUMBER;
+   numrows         NUMBER;
+   clustername     varchar2(10);
+   dimensiune      number;
+   readonly        varchar2(3);
+   constraint_name varchar2(20);
+   columnname      varchar2(20);
 
-    SELECT *
-    FROM USER_TABLES
-    WHERE table_name like TABLE_NAME;
-
-create or replace procedure SHOW_TABLE_INFO(table_name varchar2) is
-    result varchar2(1000);
 begin
+   v_cursor := DBMS_SQL.OPEN_CURSOR;
+   v_cursor2 := DBMS_SQL.OPEN_CURSOR;
+   DBMS_SQL.PARSE(v_cursor,
+                  'SELECT CLUSTER_NAME,INITIAL_EXTENT,NUM_ROWS,READ_ONLY FROM USER_TABLES where table_name =' ||
+                  '''' || table_name || '''',
+                  DBMS_SQL.NATIVE);
+   DBMS_SQL.DEFINE_COLUMN(v_cursor, 1, clustername, 10);
 
-    DBMS_OUTPUT.PUT_LINE('ceva');
-end;
+   DBMS_SQL.DEFINE_COLUMN(v_cursor, 2, dimensiune);
 
-declare
--- Iterate through all the created objects
-BEGIN
-    FOR item IN
-        (
-        SELECT object_name, object_type FROM USER_OBJECTS)
+   DBMS_SQL.DEFINE_COLUMN(v_cursor, 3, numrows);
 
-        LOOP
-            DBMS_OUTPUT.PUT_LINE
-                ('Nume obiect: ' || item.OBJECT_NAME);
-            DBMS_OUTPUT.PUT_LINE
-                ('Tip obiect: ' || item.OBJECT_TYPE);
-            if item.OBJECT_TYPE = 'TABLE' THEN
-                SHOW_TABLE_INFO('pwla');
+   DBMS_SQL.DEFINE_COLUMN(v_cursor, 4, readonly, 2);
 
-            end if;
+   v_ok := DBMS_SQL.EXECUTE(v_cursor);
 
-        END LOOP;
-        SHOW_TABLE_INFO('pwla');
+   IF DBMS_SQL.FETCH_ROWS(v_cursor) > 0 THEN
+       DBMS_SQL.COLUMN_VALUE(v_cursor, 1, clustername);
+       DBMS_SQL.COLUMN_VALUE(v_cursor, 2, dimensiune);
+       DBMS_SQL.COLUMN_VALUE(v_cursor, 3, numrows);
+       DBMS_SQL.COLUMN_VALUE(v_cursor, 4, readonly);
+       DBMS_SQL.CLOSE_CURSOR(v_cursor);
+   END IF;
+   DBMS_OUTPUT.PUT_LINE('Cluster name: ' || clustername);
+   DBMS_OUTPUT.PUT_LINE('Dimensiune maxima: ' || dimensiune);
+   DBMS_OUTPUT.PUT_LINE('Numar linii: ' || numrows);
+   DBMS_OUTPUT.PUT_LINE('ReadOnly?: ' || readonly);
+   DBMS_SQL.PARSE(v_cursor2, 'SELECT CONSTRAINT_NAME,COLUMN_NAME FROM user_cons_columns ' ||
+                             'WHERE table_name =' || '''' || table_name || '''',
+                  DBMS_SQL.NATIVE);
+   DBMS_SQL.DEFINE_COLUMN(v_cursor2, 1, constraint_name, 20);
+
+   DBMS_SQL.DEFINE_COLUMN(v_cursor2, 2, columnname, 20);
+   v_ok := DBMS_SQL.EXECUTE(v_cursor2);
+   LOOP
+       IF DBMS_SQL.FETCH_ROWS(v_cursor2) > 0 THEN
+           DBMS_SQL.COLUMN_VALUE(v_cursor2, 1, constraint_name);
+           DBMS_SQL.COLUMN_VALUE(v_cursor2, 2, columnname);
+       ELSE
+           EXIT;
+       END IF;
+   END LOOP;
+   DBMS_SQL.CLOSE_CURSOR(v_cursor2);
+   DBMS_OUTPUT.PUT_LINE('Nume constraint: ' || constraint_name);
+   DBMS_OUTPUT.PUT_LINE('Coloana unde este aplicat: ' || columnname);
+
+
+END;
+create or replace procedure get_view_data(view_name varchar2) is
+   v_cursor   NUMBER;
+   v_ok       NUMBER;
+   dimensiune number;
+   readonly   varchar2(3);
+   view_text  varchar2(1000);
+
+begin
+   v_cursor := DBMS_SQL.OPEN_CURSOR;
+   DBMS_SQL.PARSE(v_cursor,
+                  'SELECT TEXT_LENGTH,TEXT,READ_ONLY FROM USER_VIEWS where view_name =' ||
+                  '''' || view_name || '''',
+                  DBMS_SQL.NATIVE);
+   DBMS_SQL.DEFINE_COLUMN(v_cursor, 1, dimensiune);
+
+   DBMS_SQL.DEFINE_COLUMN(v_cursor, 2, view_text, 1000);
+
+   DBMS_SQL.DEFINE_COLUMN(v_cursor, 3, readonly, 2);
+
+   v_ok := DBMS_SQL.EXECUTE(v_cursor);
+
+   IF DBMS_SQL.FETCH_ROWS(v_cursor) > 0 THEN
+       DBMS_SQL.COLUMN_VALUE(v_cursor, 1, dimensiune);
+       DBMS_SQL.COLUMN_VALUE(v_cursor, 2, view_text);
+       DBMS_SQL.COLUMN_VALUE(v_cursor, 3, readonly);
+       DBMS_SQL.CLOSE_CURSOR(v_cursor);
+   END IF;
+   DBMS_OUTPUT.PUT_LINE('Dimensiune view: ' || dimensiune);
+   DBMS_OUTPUT.PUT_LINE('Text: ' || view_text);
+   DBMS_OUTPUT.PUT_LINE('ReadOnly?: ' || readonly);
+
+
+END;
+create or replace procedure get_index_data(index_name varchar2) is
+   v_cursor      NUMBER;
+   v_ok          NUMBER;
+   index_type    varchar2(30);
+   table_name    varchar2(30);
+   uniqueness    varchar2(30);
+   distinct_keys number;
+   dimensiune    number;
+
+begin
+   v_cursor := DBMS_SQL.OPEN_CURSOR;
+   DBMS_SQL.PARSE(v_cursor,
+                  'select index_type,table_name,uniqueness,distinct_keys,num_rows from USER_INDEXES where index_name =' ||
+                  '''' || index_name || '''',
+                  DBMS_SQL.NATIVE);
+   DBMS_SQL.DEFINE_COLUMN(v_cursor, 1, index_type, 30);
+
+   DBMS_SQL.DEFINE_COLUMN(v_cursor, 2, table_name, 30);
+
+   DBMS_SQL.DEFINE_COLUMN(v_cursor, 3, uniqueness, 30);
+
+   DBMS_SQL.DEFINE_COLUMN(v_cursor, 4, distinct_keys);
+
+   DBMS_SQL.DEFINE_COLUMN(v_cursor, 5, dimensiune);
+
+   v_ok := DBMS_SQL.EXECUTE(v_cursor);
+
+   IF DBMS_SQL.FETCH_ROWS(v_cursor) > 0 THEN
+       DBMS_SQL.COLUMN_VALUE(v_cursor, 1, index_type);
+       DBMS_SQL.COLUMN_VALUE(v_cursor, 2, table_name);
+       DBMS_SQL.COLUMN_VALUE(v_cursor, 3, uniqueness);
+       DBMS_SQL.COLUMN_VALUE(v_cursor, 4, distinct_keys);
+       DBMS_SQL.COLUMN_VALUE(v_cursor, 5, dimensiune);
+       DBMS_SQL.CLOSE_CURSOR(v_cursor);
+   END IF;
+   DBMS_OUTPUT.PUT_LINE('Tip index: ' || index_type);
+   DBMS_OUTPUT.PUT_LINE('Nume tabela unde e aplicat: ' || table_name);
+   DBMS_OUTPUT.PUT_LINE('Uniqueness: ' || uniqueness);
+   DBMS_OUTPUT.PUT_LINE('Numar: ' || distinct_keys);
+   DBMS_OUTPUT.PUT_LINE('Dimensiune: ' || dimensiune);
+
+
+END;
+create or replace procedure get_FPP_data(fpp_name varchar2) is --FPP = FUNCTION, PROCEDURE, PACKAGE
+   v_cursor      NUMBER;
+   v_cursor2     NUMBER;
+   v_ok          NUMBER;
+   object_id     NUMBER;
+   aggregate     varchar2(3);
+   pipelined     varchar2(3);
+   parallel      varchar2(3);
+   interface     varchar2(3);
+   deterministic varchar2(3);
+   lines_number  number;
+
+begin
+   v_cursor := DBMS_SQL.OPEN_CURSOR;
+   v_cursor2 := DBMS_SQL.OPEN_CURSOR;
+   DBMS_SQL.PARSE(v_cursor,
+                  'select OBJECT_ID,AGGREGATE,PIPELINED,PARALLEL,INTERFACE,DETERMINISTIC from USER_PROCEDURES where OBJECT_NAME=' ||
+                  '''' || fpp_name || '''',
+                  DBMS_SQL.NATIVE);
+   DBMS_SQL.DEFINE_COLUMN(v_cursor, 1, object_id);
+
+   DBMS_SQL.DEFINE_COLUMN(v_cursor, 2, aggregate, 3);
+
+   DBMS_SQL.DEFINE_COLUMN(v_cursor, 3, pipelined, 3);
+
+   DBMS_SQL.DEFINE_COLUMN(v_cursor, 4, parallel, 3);
+
+   DBMS_SQL.DEFINE_COLUMN(v_cursor, 5, interface, 3);
+
+   DBMS_SQL.DEFINE_COLUMN(v_cursor, 6, deterministic, 3);
+
+   v_ok := DBMS_SQL.EXECUTE(v_cursor);
+
+   IF DBMS_SQL.FETCH_ROWS(v_cursor) > 0 THEN
+       DBMS_SQL.COLUMN_VALUE(v_cursor, 1, object_id);
+       DBMS_SQL.COLUMN_VALUE(v_cursor, 2, aggregate);
+       DBMS_SQL.COLUMN_VALUE(v_cursor, 3, pipelined);
+       DBMS_SQL.COLUMN_VALUE(v_cursor, 4, parallel);
+       DBMS_SQL.COLUMN_VALUE(v_cursor, 5, interface);
+       DBMS_SQL.COLUMN_VALUE(v_cursor, 6, deterministic);
+       DBMS_SQL.CLOSE_CURSOR(v_cursor);
+   END IF;
+   DBMS_OUTPUT.PUT_LINE('ID obiect: ' || object_id);
+   DBMS_OUTPUT.PUT_LINE('Este agregat? : ' || aggregate);
+   DBMS_OUTPUT.PUT_LINE('Este pipelined? : ' || pipelined);
+   DBMS_OUTPUT.PUT_LINE('Este paralel? : ' || parallel);
+   DBMS_OUTPUT.PUT_LINE('Este interfata? : ' || interface);
+   DBMS_OUTPUT.PUT_LINE('Este determinist? : ' || deterministic);
+   DBMS_SQL.PARSE(v_cursor2, 'select max(LINE) from USER_source where name = ' || '''' || fpp_name || '''',
+                  DBMS_SQL.NATIVE);
+   DBMS_SQL.DEFINE_COLUMN(v_cursor2, 1, lines_number);
+
+   v_ok := DBMS_SQL.EXECUTE(v_cursor2);
+   IF DBMS_SQL.FETCH_ROWS(v_cursor2) > 0 THEN
+       DBMS_SQL.COLUMN_VALUE(v_cursor2, 1, lines_number);
+   END IF;
+
+   DBMS_SQL.CLOSE_CURSOR(v_cursor2);
+   DBMS_OUTPUT.PUT_LINE('Obiectul are : ' || lines_number || ' linii de cod.');
+
 END;
 
-SELECT object_name, object_type
-FROM USER_OBJECTS;
+select *
+from USER_TRIGGERS;
+SELECT TRIGGER_TYPE, TRIGGERING_EVENT
+FROM USER_TRIGGERS
+where TRIGGER_NAME =;
+create or replace procedure get_trigger_data(trigger_name varchar2) is
+   v_cursor         NUMBER;
+   v_ok             NUMBER;
+   trigger_type     varchar2(10);
+   triggering_event varchar2(100);
 
-SELECT object_name, object_type
-FROM USER_OBJECTS
+begin
+   v_cursor := DBMS_SQL.OPEN_CURSOR;
+   DBMS_SQL.PARSE(v_cursor,
+                  '
+   SELECT TRIGGER_TYPE,TRIGGERING_EVENT FROM USER_TRIGGERS where TRIGGER_NAME =' ||
+                  '''' || trigger_name || '''',
+                  DBMS_SQL.NATIVE);
+   DBMS_SQL.DEFINE_COLUMN(v_cursor, 1, trigger_type,10);
+
+   DBMS_SQL.DEFINE_COLUMN(v_cursor, 2, triggering_event, 100);
+
+   v_ok := DBMS_SQL.EXECUTE(v_cursor);
+
+   IF DBMS_SQL.FETCH_ROWS(v_cursor) > 0 THEN
+       DBMS_SQL.COLUMN_VALUE(v_cursor, 1, trigger_type);
+       DBMS_SQL.COLUMN_VALUE(v_cursor, 2, triggering_event);
+       DBMS_SQL.CLOSE_CURSOR(v_cursor);
+   END IF;
+   DBMS_OUTPUT.PUT_LINE('Tip de trigger: ' || trigger_type);
+   DBMS_OUTPUT.PUT_LINE('Declansator ' || triggering_event);
+
+
+END;
+
+
+declare
+-- Iterate through all the created objects and show their data
+BEGIN
+   FOR item IN
+       (
+       SELECT object_name, object_type FROM USER_OBJECTS)
+
+       LOOP
+           DBMS_OUTPUT.PUT_LINE
+               ('Nume obiect: ' || item.OBJECT_NAME);
+           DBMS_OUTPUT.PUT_LINE
+               ('Tip obiect: ' || item.OBJECT_TYPE);
+           if item.OBJECT_TYPE = 'TABLE' THEN
+               GET_TABLE_DATA(item.OBJECT_NAME);
+           end if;
+           if item.OBJECT_TYPE = 'VIEW' THEN
+               get_view_data(item.OBJECT_NAME);
+           end if;
+           if item.OBJECT_TYPE = 'INDEX' THEN
+               get_index_data(item.OBJECT_NAME);
+           end if;
+           if item.OBJECT_TYPE = 'TRIGGER' THEN
+               GET_TRIGGER_DATA(item.OBJECT_NAME);
+           end if;
+           if item.OBJECT_TYPE = 'FUNCTION' OR item.OBJECT_TYPE = 'PROCEDURE' OR item.OBJECT_TYPE = 'PACKAGE' THEN
+               get_fpp_data(item.OBJECT_NAME);
+           end if;
+
+
+       END LOOP;
+
+END;
+
