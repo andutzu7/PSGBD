@@ -1,0 +1,128 @@
+DROP TABLE TEST;
+--TODO : INSERTURI IN TABELA
+--      SERVER SI CLIENT
+CREATE TABLE TEST
+(
+    email              varchar(255),
+    nr_ordine          integer,
+    id_intrebare       varchar2(5),
+    answer_id1         varchar2(5),
+    answer_id2         varchar2(5),
+    answer_id3         varchar2(5),
+    answer_id4         varchar2(5),
+    answer_id5         varchar2(5),
+    answer_id6         varchar2(5),
+    correct_answer_ids varchar(255),
+    user_answer_ids    varchar(255)
+);
+--daca stim ca raspunsul e pretty much de forma unui csv putem lua valorile si sa le inseram in test
+--forma e
+create or replace function calculate_score(result in varchar2, current_score in integer)
+    return integer
+    is
+
+begin
+    return 0;
+end;
+
+
+create or replace procedure create_test(email in varchar2)
+    is
+    TYPE var_array IS TABLE OF VARCHAR2(200);
+    q_id_array        var_array;
+    a_id_array        var_array;
+    corr_ans_id_array var_array;
+    random_index      number;
+    str1              varchar2(255);
+    str2              varchar2(255);
+    result            varchar2(255);
+    questionid        varchar2(5);
+    answer_id         varchar2(5);
+    answer_validity   varchar2(2);
+begin
+    q_id_array := var_array();
+    q_id_array.extend;
+    a_id_array := var_array();
+    a_id_array.extend;
+    for i in 1..10
+        loop
+            select dbms_random.VALUE(1, 17) into random_index from dual;
+            --mi se generau floaturi deci a trb sa rez
+            random_index := ROUND(random_index);
+            questionid := 'Q' || random_index;
+            if questionid member of q_id_array then
+                while questionid member of q_id_array
+                    loop
+                        select dbms_random.VALUE(1, 17) into random_index from dual;
+                        --mi se generau floaturi deci a trb sa rez
+                        random_index := ROUND(random_index);
+                        questionid := 'Q' || random_index;
+                    end loop;
+            end if;
+            q_id_array.extend;
+            q_id_array(q_id_array.COUNT) := questionid;
+            for j in 1..6
+                loop
+                    str1 := 'SELECT * FROM
+        (SELECT ID FROM RASPUNSURI WHERE Q_ID = :1 ORDER BY DBMS_RANDOM.VALUE )
+    WHERE ROWNUM <=1';
+                    str2 := 'SELECT * FROM
+        (SELECT CORECT FROM RASPUNSURI WHERE Q_ID = :1 ORDER BY DBMS_RANDOM.VALUE )
+    WHERE ROWNUM <=1';
+
+                    EXECUTE IMMEDIATE str1 into answer_id using questionid;
+
+                    EXECUTE IMMEDIATE str2 into answer_validity using questionid;
+
+                    if answer_id member of a_id_array then
+                        while answer_id member of a_id_array
+                            loop
+
+                                EXECUTE IMMEDIATE str1 into answer_id using questionid;
+
+                                EXECUTE IMMEDIATE str2 into answer_validity using questionid;
+
+                            end loop;
+
+                    end if;
+                    a_id_array.extend;
+                    a_id_array(a_id_array.COUNT) := answer_id;
+
+                end loop;
+        end loop;
+    for i in 1..11
+        loop
+            DBMS_OUTPUT.PUT_LINE(q_id_array(i) || ' ');
+        end loop;
+end;
+
+
+create
+    or
+    replace function urmatoarea_intrebare(email in varchar2, result in varchar2 default null)
+    return varchar2
+    is
+begin
+    if result IS NULL then
+        DBMS_OUTPUT.PUT_LINE('result e null');
+
+    end if;
+    DBMS_OUTPUT.PUT_LINE(email || result);
+    return 'test';
+end;
+
+begin
+    create_test('la');
+end;
+
+
+SELECT *
+FROM (SELECT *
+      FROM INTREBARI
+      ORDER BY DBMS_RANDOM.VALUE)
+WHERE ROWNUM = 1
+
+
+SELECT *
+FROM (SELECT * FROM RASPUNSURI WHERE Q_ID = 'Q13' ORDER BY DBMS_RANDOM.VALUE)
+WHERE ROWNUM <= 6
