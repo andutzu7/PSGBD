@@ -17,6 +17,7 @@ CREATE TABLE TEST
 );
 
 
+
 create or replace procedure create_test(email in varchar2)
     is
     TYPE var_array IS TABLE OF VARCHAR2(200);
@@ -194,3 +195,7 @@ begin
 
 SELECT *
 FROM TEST;
+
+
+
+select CORRECT_ANSWER_IDS,USER_ANSWER_IDS from TEST where nr_ordine=1;

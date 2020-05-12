@@ -114,9 +114,6 @@ class Main {
 
             String str, str1;
 
-            // repeat as long as the client
-            // does not send a null string
-
             String email = br.readLine();
             System.out.println(email);
             ps.println("Got the email adresss. ");
@@ -127,26 +124,71 @@ class Main {
                 if (str1.equals("exit")) {
                     stop = true;
                 }
+                String problemText;
                 System.out.println("str1 este "+ str1);
                 String result = executePLSQLFunction(email, str1);
+                if (!isNumeric(result)){
                 HashMap<String, List<String>> answer = parseAnswer(result);
-                String problemText = generateProblemText(answer);
-                // send to client
+                problemText = generateProblemText(answer);
+                }
+                else{
+                   problemText="Ai incheiat testul. Punctajul tau este "+ computeScore();
+
+                }
                 ps.write(problemText.getBytes());
                 ps.flush();
             }
         //TREBUIE TRATAT SPECIAL CAZUL CAND E AL 10LEA TABEL
-            // close connection
             ps.close();
             br.close();
             kb.close();
             ss.close();
             s.close();
 
-            // terminate application
             System.exit(0);
 
         }
+
     }
 
+    public static float computeScore() throws SQLException {
+        String query = "select CORRECT_ANSWER_IDS,USER_ANSWER_IDS from TEST where nr_ordine=?";
+        float totalPoints = 0;
+        for (int i = 1; i <= 10; i++) {
+            float currentPoints = 0;
+            PreparedStatement preparedStatement = connection.prepareStatement(query);
+            preparedStatement.setInt(1, i);
+            ResultSet rs = preparedStatement.executeQuery();
+            rs.next();
+            String correctAnswers = rs.getString(1);
+            int totalCAnswers = correctAnswers.split(",").length;
+            String userAnswersUnformatted = rs.getString(2);
+            String[] userAnswers = userAnswersUnformatted.split(",");
+            int currentCAnswers = 0;
+            for (String answer : userAnswers) {
+                if (correctAnswers.contains(answer)) {
+                    currentCAnswers++;
+                } else {
+                    currentCAnswers--;
+                }
+            }
+            float oneCAnswer=10/totalCAnswers;
+            currentPoints = oneCAnswer*currentCAnswers;
+            if(currentPoints>0){
+                totalPoints+=currentPoints;
+            }
+        }
+
+
+        return totalPoints;
+    }
+
+    public static boolean isNumeric(String str) {
+        try {
+            Double.parseDouble(str);
+            return true;
+        } catch (NumberFormatException e) {
+            return false;
+        }
+    }
 }

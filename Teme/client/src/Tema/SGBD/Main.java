@@ -42,7 +42,9 @@ class Main {
         br.close();
         kb.close();
         s.close();
+
     }
+
 }
 
 //1:A75,A80,A77,A81,A74,A78, Raspunsuri: A75,A77,A78
