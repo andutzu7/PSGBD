@@ -15,7 +15,7 @@ class Main {
     public static void executePLSQLFunction() throws SQLException {
         CallableStatement cstmt = connection.prepareCall("{?= call urmatoarea_intrebare(?,?)}");
         String email="ion@yahoo.com";
-        String rezolvare="";
+        String rezolvare="1:A19,A11,A14";
         cstmt.registerOutParameter(1, Types.VARCHAR);
         cstmt.setString(2, email);
         cstmt.setString(3, rezolvare);

@@ -3,7 +3,7 @@ DROP TABLE TEST;
 --      SERVER SI CLIENT
 CREATE TABLE TEST
 (
-    email              varchar(255),
+    USER_EMAIL         varchar(255),
     nr_ordine          integer,
     id_intrebare       varchar2(5),
     answer_id1         varchar2(5),
@@ -17,33 +17,34 @@ CREATE TABLE TEST
 );
 --daca stim ca raspunsul e pretty much de forma unui csv putem lua valorile si sa le inseram in test
 --forma e
-create or replace function calculate_score(result in varchar2, current_score in integer)
+create or replace function calculate_score--de adaugat param
     return integer
     is
 
 begin
-    return 0;
+    return 10;
 end;
 
 
 create or replace procedure create_test(email in varchar2)
     is
     TYPE var_array IS TABLE OF VARCHAR2(200);
-    q_id_array        var_array;
-    a_id_array        var_array;
-    corr_ans_id_array var_array;
-    random_index      number;
-    str1              varchar2(255);
-    str2              varchar2(255);
-    result            varchar2(255);
-    questionid        varchar2(5);
-    answer_id         varchar2(5);
-    answer_validity   varchar2(2);
+    q_id_array      var_array;
+    a_id_array      var_array;
+    random_index    number;
+    str1            varchar2(255);
+    str2            varchar2(255);
+    questionid      varchar2(5);
+    answer_id       varchar2(5);
+    answer_validity varchar2(2);
+    answers         varchar2(100);
 begin
     q_id_array := var_array();
     q_id_array.extend;
     a_id_array := var_array();
     a_id_array.extend;
+    a_id_array.extend(6);
+
     for i in 1..10
         loop
             select dbms_random.VALUE(1, 17) into random_index from dual;
@@ -61,6 +62,7 @@ begin
             end if;
             q_id_array.extend;
             q_id_array(q_id_array.COUNT) := questionid;
+            answers := '';
             for j in 1..6
                 loop
                     str1 := 'SELECT * FROM
@@ -83,17 +85,36 @@ begin
                                 EXECUTE IMMEDIATE str2 into answer_validity using questionid;
 
                             end loop;
+                    end if;
+                    if j = 6 and answers is null then
+                        if answer_validity = '0' then
+                            EXECUTE IMMEDIATE str1 into answer_id using questionid;
+
+                            EXECUTE IMMEDIATE str2 into answer_validity using questionid;
+                            while answer_validity = '0'
+                                loop
+                                    EXECUTE IMMEDIATE str1 into answer_id using questionid;
+
+                                    EXECUTE IMMEDIATE str2 into answer_validity using questionid;
+
+                                end loop;
+                        end if;
 
                     end if;
-                    a_id_array.extend;
-                    a_id_array(a_id_array.COUNT) := answer_id;
+                    if answer_validity = '1' then
+                        answers := answers || answer_id || ',';
+
+                    end if;
+
+                    a_id_array(j) := answer_id;
 
                 end loop;
+            select SUBSTR(answers, 0, LENGTH(answers) - 1) into answers from dual;
+            insert into TEST
+            values ( EMAIL, i, questionid, a_id_array(1), a_id_array(2), a_id_array(3)
+                   , a_id_array(4), a_id_array(5), a_id_array(6), answers, null);
         end loop;
-    for i in 1..11
-        loop
-            DBMS_OUTPUT.PUT_LINE(q_id_array(i) || ' ');
-        end loop;
+
 end;
 
 
@@ -102,27 +123,82 @@ create
     replace function urmatoarea_intrebare(email in varchar2, result in varchar2 default null)
     return varchar2
     is
+    str              varchar2(255);
+    score            number;
+    counter_check    number;
+    order_number     varchar2(2);
+    order_number_int number;
+    is_numeric       number;
+    answers          varchar2(100);
+    fetched_column   varchar2(100);
+    next_question    varchar2(255);
+    answer_id_text   varchar2(20);
 begin
     if result IS NULL then
-        DBMS_OUTPUT.PUT_LINE('result e null');
+        --ori nu are test facut, ori a terminat
+        select count(USER_EMAIL) into counter_check from test;
+        if counter_check = 0 then
+            create_test(email);
+        end if;
+    else
+        --raspunsul este de forma (nr_ordine) : iduri
+        order_number := substr(result, 1, 2);
+        SELECT LENGTH(TRIM(TRANSLATE(order_number, ' +-.0123456789', ' '))) into is_numeric FROM dual;
+        if is_numeric is not NULL then
+            order_number := substr(order_number, 1, 1);
+            answers := substr(result, 3, length(result) - 1);
+        else
+            answers := substr(result, 4, length(result) - 1);
 
+        end if;
+        update TEST set user_answer_ids = answers where nr_ordine = to_number(order_number);
     end if;
-    DBMS_OUTPUT.PUT_LINE(email || result);
-    return 'test';
+
+    select count(NR_ORDINE)
+    into counter_check
+    from test
+    where user_answer_ids is null;
+    if counter_check > 0 then
+
+        select nr_ordine into order_number from test
+        WHERE ROWNUM = 1;
+        --trebuie sa transmit id intrebare, 6 iduri pt rasp si id rasp corecte
+        DBMS_OUTPUT.PUT_LINE('Transmit urmatoarea intrebare');
+        next_question := order_number || ':';
+     for i in 1..6
+            loop
+                answer_id_text := 'ANSWER_ID' || i;
+                str := 'SELECT '|| answer_id_text ||' FROM TEST WHERE NR_ORDINE = ' || order_number;
+                EXECUTE IMMEDIATE str into fetched_column;
+                next_question := next_question || fetched_column || ',';
+
+            end loop;
+        next_question := next_question || ' Raspunsuri: ';
+        str := 'SELECT CORRECT_ANSWER_IDS FROM TEST WHERE NR_ORDINE = ' || order_number;
+        EXECUTE IMMEDIATE str into fetched_column;
+        next_question := next_question || fetched_column;
+        return next_question;
+    else
+        if counter_check =0 then
+        score := calculate_score();
+            return score;
+            end if;
+    end if;
+
+    return -1;--an error happened
 end;
 
+
+
+
+declare
+    x varchar2(59);
 begin
-    create_test('la');
-end;
+
+    x := urmatoarea_intrebare('ion@uaic.ro', '10:a3,a1,a2');
+    DBMS_OUTPUT.PUT_LINE(x);
+    end;
 
 
 SELECT *
-FROM (SELECT *
-      FROM INTREBARI
-      ORDER BY DBMS_RANDOM.VALUE)
-WHERE ROWNUM = 1
-
-
-SELECT *
-FROM (SELECT * FROM RASPUNSURI WHERE Q_ID = 'Q13' ORDER BY DBMS_RANDOM.VALUE)
-WHERE ROWNUM <= 6
+FROM TEST;
