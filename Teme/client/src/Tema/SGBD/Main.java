@@ -28,14 +28,14 @@ class Main {
                 = new BufferedReader(
                 new InputStreamReader(System.in));
         String str, str1;
-
         while (!(str = kb.readLine()).equals("exit")) {
 
+            char[] string=new char[10000];
             dos.writeBytes(str + "\n");
 
-            str1 = br.readLine();
+            br.read(string);
 
-            System.out.println(str1);
+            System.out.println(string);
         }
 
         dos.close();

@@ -110,31 +110,43 @@ class Main {
                 = new BufferedReader(
                 new InputStreamReader(System.in));
         boolean over = false;
-        while (!over) {
-
-           /* String result = executePLSQLFunction("diana@uaic.ro", "");
+        while (true) {
 
             String str, str1;
-            str = br.readLine();
-            HashMap<String, List<String>> answer = parseAnswer(str);
-            System.out.println(result);
-            String problemText = generateProblemText(answer);
-            System.out.println(problemText);
-            str1 = kb.readLine();
-            ps.println(problemText);
-       */
+
+            // repeat as long as the client
+            // does not send a null string
+
+            String email = br.readLine();
+            System.out.println(email);
+            ps.println("Got the email adresss. ");
+            // read from client
+            boolean stop = false;
+            while (!stop) {
+                str1 = br.readLine();
+                if (str1.equals("exit")) {
+                    stop = true;
+                }
+                System.out.println("str1 este "+ str1);
+                String result = executePLSQLFunction(email, str1);
+                HashMap<String, List<String>> answer = parseAnswer(result);
+                String problemText = generateProblemText(answer);
+                // send to client
+                ps.write(problemText.getBytes());
+                ps.flush();
+            }
+        //TREBUIE TRATAT SPECIAL CAZUL CAND E AL 10LEA TABEL
+            // close connection
+            ps.close();
+            br.close();
+            kb.close();
+            ss.close();
+            s.close();
+
+            // terminate application
+            System.exit(0);
+
         }
-
-        ps.close();
-        br.close();
-        kb.close();
-        ss.close();
-        s.close();
-
-        System.exit(0);
     }
-/*
-        Database db = Database.getInstance();
-        Main m = new Main();
-  */
+
 }
