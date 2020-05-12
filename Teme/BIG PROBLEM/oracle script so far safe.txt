@@ -15,15 +15,6 @@ CREATE TABLE TEST
     correct_answer_ids varchar(255),
     user_answer_ids    varchar(255)
 );
---daca stim ca raspunsul e pretty much de forma unui csv putem lua valorile si sa le inseram in test
---forma e
-create or replace function calculate_score--de adaugat param
-    return integer
-    is
-
-begin
-    return 10;
-end;
 
 
 create or replace procedure create_test(email in varchar2)
@@ -159,12 +150,12 @@ begin
     from test
     where user_answer_ids is null;
     if counter_check > 0 then
-
         select nr_ordine into order_number from test
-        WHERE ROWNUM = 1;
+        WHERE ROWNUM = 1 and user_answer_ids is null;
         --trebuie sa transmit id intrebare, 6 iduri pt rasp si id rasp corecte
         DBMS_OUTPUT.PUT_LINE('Transmit urmatoarea intrebare');
         next_question := order_number || ':';
+        DBMS_OUTPUT.PUT_LINE(order_number);
      for i in 1..6
             loop
                 answer_id_text := 'ANSWER_ID' || i;
@@ -180,8 +171,8 @@ begin
         return next_question;
     else
         if counter_check =0 then
-        score := calculate_score();
-            return score;
+
+            return 1; --'codul' ce semnifica faptul ca nu mai exista intrebari si trebuie transmis scorul
             end if;
     end if;
 
@@ -195,8 +186,9 @@ declare
     x varchar2(59);
 begin
 
-    x := urmatoarea_intrebare('ion@uaic.ro', '10:a3,a1,a2');
+    x := urmatoarea_intrebare('ion@uaic.ro');
     DBMS_OUTPUT.PUT_LINE(x);
+
     end;
 
 
